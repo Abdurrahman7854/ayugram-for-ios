@@ -295,7 +295,7 @@ diff --git a/Swiftgram/SGSimpleSettings/Sources/AyuGramSettings.swift b/Swiftgra
 index 22e3e212..7f60b280 100644
 --- a/Swiftgram/SGSimpleSettings/Sources/AyuGramSettings.swift
 +++ b/Swiftgram/SGSimpleSettings/Sources/AyuGramSettings.swift
-@@ -179,6 +179,26 @@ public struct AyuGramExtraSettings: Codable, Equatable {
+@@ -179,6 +179,28 @@ public struct AyuGramExtraSettings: Codable, Equatable {
      public var confirmStickers = false
      public var confirmGifs = false
      public var confirmReadReceipt = true
@@ -319,10 +319,12 @@ index 22e3e212..7f60b280 100644
 +    public var hideStories = false
 +    /// Hide channel recommendations after the chat history.
 +    public var disableSimilarChannels = false
++    /// Hide the Premium badge in the chat header.
++    public var hidePremiumStatuses = false
  
      public var sendsSilently: Bool {
          return silentSending == 2 || (silentSending == 1 && AyuGramSettings.shared.snapshot.ghostMode)
-@@ -204,6 +222,17 @@ public struct AyuGramExtraSettings: Codable, Equatable {
+@@ -204,6 +222,18 @@ public struct AyuGramExtraSettings: Codable, Equatable {
          self.confirmStickers = try container.decodeIfPresent(Bool.self, forKey: .confirmStickers) ?? defaults.confirmStickers
          self.confirmGifs = try container.decodeIfPresent(Bool.self, forKey: .confirmGifs) ?? defaults.confirmGifs
          self.confirmReadReceipt = try container.decodeIfPresent(Bool.self, forKey: .confirmReadReceipt) ?? defaults.confirmReadReceipt
@@ -337,6 +339,7 @@ index 22e3e212..7f60b280 100644
 +        self.filterZalgo = try container.decodeIfPresent(Bool.self, forKey: .filterZalgo) ?? defaults.filterZalgo
 +        self.hideStories = try container.decodeIfPresent(Bool.self, forKey: .hideStories) ?? defaults.hideStories
 +        self.disableSimilarChannels = try container.decodeIfPresent(Bool.self, forKey: .disableSimilarChannels) ?? defaults.disableSimilarChannels
++        self.hidePremiumStatuses = try container.decodeIfPresent(Bool.self, forKey: .hidePremiumStatuses) ?? defaults.hidePremiumStatuses
      }
  }
  
@@ -463,7 +466,7 @@ diff --git a/Swiftgram/SGStrings/Strings/en.lproj/SGLocalizable.strings b/Swiftg
 index 15684797..3b431834 100644
 --- a/Swiftgram/SGStrings/Strings/en.lproj/SGLocalizable.strings
 +++ b/Swiftgram/SGStrings/Strings/en.lproj/SGLocalizable.strings
-@@ -430,3 +430,29 @@
+@@ -430,3 +430,30 @@
  "Ayu.ViewDeletedInfo" = "Chats with deleted messages kept on this device. Open one to read its deleted messages or the whole chat.";
  "Ayu.ViewDeletedEmpty" = "No deleted messages yet.";
  "Ayu.ConfirmReadReceipt" = "Confirm read receipts";
@@ -482,6 +485,7 @@ index 15684797..3b431834 100644
 +"Ayu.ZalgoFilter" = "Filter Zalgo text";
 +"Ayu.HideStoryStrip" = "Hide stories above chat list";
 +"Ayu.DisableSimilarChannels" = "Hide similar channels in chats";
++"Ayu.HidePremiumStatuses" = "Hide Premium badges in chat headers";
 +"Ayu.RegexFiltersInfo" = "Matching incoming messages are dimmed. Java/ICU-style regular expressions are used, with multiline matching.";
 +"Ayu.RegexPatterns" = "Regular expressions";
 +"Ayu.RegexPatternsEmpty" = "No filters added yet";
@@ -497,7 +501,7 @@ diff --git a/Swiftgram/SGStrings/Strings/ru.lproj/SGLocalizable.strings b/Swiftg
 index af39aaf8..781de959 100644
 --- a/Swiftgram/SGStrings/Strings/ru.lproj/SGLocalizable.strings
 +++ b/Swiftgram/SGStrings/Strings/ru.lproj/SGLocalizable.strings
-@@ -425,3 +425,29 @@
+@@ -425,3 +425,30 @@
  "Ayu.ViewDeletedInfo" = "Чаты, где на этом устройстве сохранены удалённые сообщения. Открой чат, чтобы посмотреть его удалённые сообщения или весь чат.";
  "Ayu.ViewDeletedEmpty" = "Удалённых сообщений пока нет.";
  "Ayu.ConfirmReadReceipt" = "Подтверждать отправку прочтения";
@@ -516,6 +520,7 @@ index af39aaf8..781de959 100644
 +"Ayu.ZalgoFilter" = "Фильтровать Zalgo-текст";
 +"Ayu.HideStoryStrip" = "Скрывать истории над списком чатов";
 +"Ayu.DisableSimilarChannels" = "Скрывать похожие каналы в чатах";
++"Ayu.HidePremiumStatuses" = "Скрывать Premium-значки в заголовке чата";
 +"Ayu.RegexFiltersInfo" = "Совпавшие входящие сообщения становятся полупрозрачными. Используются регулярные выражения Java/ICU; поиск учитывает переносы строк.";
 +"Ayu.RegexPatterns" = "Регулярные выражения";
 +"Ayu.RegexPatternsEmpty" = "Фильтры ещё не добавлены";

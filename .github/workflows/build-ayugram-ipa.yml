@@ -65,7 +65,7 @@ jobs:
           git -C source apply --check "$PATCH"
           git -C source apply "$PATCH"
 
-      - name: Port AyuGram history, display, and send-confirmation controls to iOS
+      - name: Port AyuGram history, display, and chat controls to iOS
         run: |
           set -euo pipefail
           PATCH="$GITHUB_WORKSPACE/build-tools/.github/patches/ayu-extra-history-options-ios.patch"

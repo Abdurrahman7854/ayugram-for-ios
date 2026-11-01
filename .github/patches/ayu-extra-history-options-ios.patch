@@ -7,17 +7,18 @@ diff --git a/Swiftgram/SGSettingsUI/Sources/AyuGramSettingsScreen.swift b/Swiftg
      case ignoreProtection, screenshots
 -    case history, premium
 -    case scheduleInGhost, disableAds, disableLinkWarning, disableGreeting, dimDeleted, repeatMessage, confirmStickers, confirmGifs, confirmRead
-+    case history, premium, saveDeleted, saveEdited, saveBots, showSeconds, hideStories, disableSimilarChannels
++    case history, premium, saveDeleted, saveEdited, saveBots, showSeconds, hideStories, disableSimilarChannels, hidePremiumStatuses
 +    case scheduleInGhost, disableAds, disableLinkWarning, disableGreeting, dimDeleted, repeatMessage, confirmStickers, confirmGifs, confirmVoice, confirmVideo, confirmRead
  }
  
  private enum AyuScreenLink: Equatable {
-@@ -162,17 +162,25 @@
+@@ -162,17 +162,26 @@
      entries.append(.footer(id: 430, section: .content, text: s("Ayu.ContentFooter")))
  
      entries.append(.header(id: 431, section: .chats, text: s("Ayu.ChatsSection")))
 +    entries.append(.toggle(id: 4311, section: .chats, key: .hideStories, symbol: "eye.slash.fill", tint: .purple, title: s("Ayu.HideStoryStrip"), subtitle: nil, value: extra.hideStories, enabled: true))
 +    entries.append(.toggle(id: 4312, section: .chats, key: .disableSimilarChannels, symbol: "rectangle.stack.badge.minus", tint: .orange, title: s("Ayu.DisableSimilarChannels"), subtitle: nil, value: extra.disableSimilarChannels, enabled: true))
++    entries.append(.toggle(id: 4313, section: .chats, key: .hidePremiumStatuses, symbol: "star.slash.fill", tint: .purple, title: s("Ayu.HidePremiumStatuses"), subtitle: nil, value: extra.hidePremiumStatuses, enabled: true))
      entries.append(.toggle(id: 432, section: .chats, key: .disableAds, symbol: "megaphone.fill", tint: .orange, title: s("Ayu.DisableAds"), subtitle: nil, value: extra.disableAds, enabled: true))
      entries.append(.toggle(id: 433, section: .chats, key: .disableLinkWarning, symbol: "link", tint: .blue, title: s("Ayu.DisableLinkWarning"), subtitle: nil, value: extra.disableLinkWarning, enabled: true))
      entries.append(.toggle(id: 434, section: .chats, key: .disableGreeting, symbol: "hand.wave.fill", tint: .green, title: s("Ayu.DisableGreeting"), subtitle: nil, value: extra.disableGreetingSticker, enabled: true))
@@ -38,7 +39,7 @@ diff --git a/Swiftgram/SGSettingsUI/Sources/AyuGramSettingsScreen.swift b/Swiftg
      entries.append(.link(id: 520, section: .history, link: .history, symbol: "clock.fill", tint: .teal, title: s("Ayu.OpenHistory"), label: ""))
      entries.append(.footer(id: 530, section: .history, text: s("Ayu.HistoryInfo")))
  
-@@ -245,7 +253,15 @@
+@@ -245,7 +254,16 @@
          case .repeatMessage: settings.updateExtra { $0.repeatMessage = value }
          case .confirmStickers: settings.updateExtra { $0.confirmStickers = value }
          case .confirmGifs: settings.updateExtra { $0.confirmGifs = value }
@@ -51,6 +52,7 @@ diff --git a/Swiftgram/SGSettingsUI/Sources/AyuGramSettingsScreen.swift b/Swiftg
 +        case .showSeconds: settings.updateExtra { $0.showMessageSeconds = value }
 +        case .hideStories: settings.updateExtra { $0.hideStories = value }
 +        case .disableSimilarChannels: settings.updateExtra { $0.disableSimilarChannels = value }
++        case .hidePremiumStatuses: settings.updateExtra { $0.hidePremiumStatuses = value }
          }
      }, updatePins: { value in
          AyuGramSettings.shared.updateClient { $0.maxPinnedChats = value }
@@ -218,3 +220,33 @@ diff --git a/submodules/TelegramUI/Sources/Chat/ChatControllerMediaRecording.swi
          
          switch recordedMediaPreview {
          case let .audio(audio):
+diff --git a/submodules/TelegramUI/Components/ChatTitleView/Sources/ChatTitleComponent.swift b/submodules/TelegramUI/Components/ChatTitleView/Sources/ChatTitleComponent.swift
+--- a/submodules/TelegramUI/Components/ChatTitleView/Sources/ChatTitleComponent.swift
++++ b/submodules/TelegramUI/Components/ChatTitleView/Sources/ChatTitleComponent.swift
+@@ -1,4 +1,5 @@
+ import Foundation
++import SGSimpleSettings
+ import UIKit
+ import Display
+ import ComponentFlow
+@@ -649,7 +650,7 @@
+                                 titleCredibilityIcon = .scam
+                             } else if !hidePeerStatus, let emojiStatus = peer.emojiStatus {
+                                 titleStatusIcon = .emojiStatus(emojiStatus)
+-                            } else if peer.isPremium && !premiumConfiguration.isPremiumDisabled {
++                            } else if !AyuGramSettings.shared.extra.hidePremiumStatuses && peer.isPremium && !premiumConfiguration.isPremiumDisabled {
+                                 titleCredibilityIcon = .premium
+                             }
+                             
+diff --git a/submodules/TelegramUI/Components/ChatTitleView/Sources/ChatTitleView.swift b/submodules/TelegramUI/Components/ChatTitleView/Sources/ChatTitleView.swift
+--- a/submodules/TelegramUI/Components/ChatTitleView/Sources/ChatTitleView.swift
++++ b/submodules/TelegramUI/Components/ChatTitleView/Sources/ChatTitleView.swift
+@@ -312,7 +312,7 @@
+                                         titleCredibilityIcon = .scam
+                                     } else if !hidePeerStatus, let emojiStatus = peer.emojiStatus {
+                                         titleStatusIcon = .emojiStatus(emojiStatus)
+-                                    } else if (peer.isPremium) && !premiumConfiguration.isPremiumDisabled {
++                                    } else if !AyuGramSettings.shared.extra.hidePremiumStatuses && peer.isPremium && !premiumConfiguration.isPremiumDisabled {
+                                         titleCredibilityIcon = .premium
+                                     }
+                                     
