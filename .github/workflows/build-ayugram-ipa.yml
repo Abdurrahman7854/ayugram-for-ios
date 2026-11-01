@@ -1,0 +1,166 @@
+name: Build AyuGram iOS custom unsigned IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_bundle_id:
+        description: Bundle identifier for this personal build
+        required: true
+        default: com.abdurrahman7854.ayugram
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: xcode-27
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Verify Telegram API secrets
+        env:
+          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$TELEGRAM_API_ID" || -z "$TELEGRAM_API_HASH" ]]; then
+            echo "::error::Add TELEGRAM_API_ID and TELEGRAM_API_HASH as Actions secrets in this repository. Secret values are never printed."
+            exit 1
+          fi
+          if [[ ! "$TELEGRAM_API_ID" =~ ^[0-9]+$ ]]; then
+            echo "::error::TELEGRAM_API_ID must contain only digits."
+            exit 1
+          fi
+          if [[ ! "$TELEGRAM_API_HASH" =~ ^[a-fA-F0-9]{32}$ ]]; then
+            echo "::error::TELEGRAM_API_HASH must be a 32-character hexadecimal app hash."
+            exit 1
+          fi
+
+      - name: Checkout AyuGram iOS source
+        uses: actions/checkout@v4
+        with:
+          repository: mapix3/AyuGram-iOS
+          ref: 2c0193cd9d91e7a9a529c26e47f9e6ebf49c06ec
+          path: source
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Checkout build customization
+        uses: actions/checkout@v4
+        with:
+          path: build-tools
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Port AyuGram regex filters to iOS
+        run: |
+          set -euo pipefail
+          PATCH="$GITHUB_WORKSPACE/build-tools/.github/patches/ayu-android-regex-filter-ios.patch"
+          git -C source apply --check "$PATCH"
+          git -C source apply "$PATCH"
+
+      - name: Port AyuGram history, display, and send-confirmation controls to iOS
+        run: |
+          set -euo pipefail
+          PATCH="$GITHUB_WORKSPACE/build-tools/.github/patches/ayu-extra-history-options-ios.patch"
+          git -C source apply --check "$PATCH"
+          git -C source apply "$PATCH"
+
+      - name: Select pinned Xcode
+        run: |
+          set -euo pipefail
+          XCODE_VERSION="$(python -c 'import json; print(json.load(open("source/versions.json"))["xcode"])')"
+          DEVELOPER_DIR="/Applications/Xcode_${XCODE_VERSION}.app/Contents/Developer"
+          if [[ ! -d "$DEVELOPER_DIR" ]]; then
+            echo "::error::Required Xcode ${XCODE_VERSION} is not installed on this runner."
+            exit 1
+          fi
+          sudo xcode-select --switch "$DEVELOPER_DIR"
+          echo "DEVELOPER_DIR=$DEVELOPER_DIR" >> "$GITHUB_ENV"
+          xcodebuild -version
+
+      - name: Apply AyuGram product branding
+        run: python build-tools/.github/scripts/rebrand_ayugram.py source
+
+      - name: Free runner disk space
+        run: |
+          set -uo pipefail
+          KEEP="$(cd "${DEVELOPER_DIR%/Contents/Developer}" && pwd -P)"
+          for app in /Applications/Xcode*.app; do
+            if [[ ! -L "$app" && "$(cd "$app" && pwd -P)" != "$KEEP" ]]; then
+              sudo rm -rf "$app" &
+            fi
+          done
+          xcrun simctl shutdown all 2>/dev/null || true
+          xcrun simctl delete all 2>/dev/null || true
+          xcrun simctl runtime delete all 2>/dev/null || true
+          sudo rm -rf ~/Library/Android /usr/local/share/dotnet ~/.dotnet ~/Library/Developer/CoreSimulator/Caches &
+          wait
+          df -h /
+
+      - name: Install Metal toolchain
+        run: |
+          set -euo pipefail
+          if ! xcrun metal --version >/dev/null 2>&1; then
+            xcodebuild -downloadComponent MetalToolchain
+          fi
+          for attempt in $(seq 1 60); do
+            if xcrun metal --version; then exit 0; fi
+            sleep 5
+          done
+          echo "::error::Metal toolchain did not become available"
+          exit 1
+
+      - name: Install ccache
+        run: |
+          if ! command -v ccache >/dev/null; then brew install ccache; fi
+          ccache --version
+
+      - name: Restore Bazel cache
+        uses: actions/cache@v4
+        with:
+          path: ~/telegram-bazel-cache
+          key: ayugram-bazel-${{ github.run_id }}
+          restore-keys: ayugram-bazel-
+
+      - name: Build device IPA
+        env:
+          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID || '0000000000' }}
+          APP_BUNDLE_ID: ${{ inputs.app_bundle_id }}
+          AYUGRAM_VARIANT: custom
+          AYUGRAM_CONFIGURATION: release_arm64
+          AYUGRAM_BAZEL_CACHE: ${{ runner.temp }}/telegram-bazel-cache
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('source/ci/ayugram_ci.py')
+          source = path.read_text(encoding='utf-8')
+          start = "        # Checks run against the repository's own source before the expensive build.\n"
+          end = "        from ayugram_branding import prepare_branding, verify_branding_ipa\n        prepare_branding(source)"
+          if source.count(start) != 1 or source.count(end) != 1:
+              raise SystemExit('Pinned AyuGram build driver changed; refusing to patch it.')
+          begin = source.index(start)
+          finish = source.index(end, begin) + len(end)
+          path.write_text(source[:begin] + end + source[finish:], encoding='utf-8')
+          PY
+          python -u source/ci/ayugram_ci.py --source source --ci source/ci --output source/artifacts
+
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: AyuGram-iOS-unsigned-ipa
+          path: |
+            source/artifacts/AyuGram-custom-unsigned.ipa
+            source/artifacts/build-manifest.json
+          if-no-files-found: error
+          retention-days: 30

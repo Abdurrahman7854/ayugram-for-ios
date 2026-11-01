@@ -1,0 +1,594 @@
+diff --git a/Swiftgram/SGProUI/Sources/MessageFilterController.swift b/Swiftgram/SGProUI/Sources/MessageFilterController.swift
+index eb36ac2e..4d15d0f1 100644
+--- a/Swiftgram/SGProUI/Sources/MessageFilterController.swift
++++ b/Swiftgram/SGProUI/Sources/MessageFilterController.swift
+@@ -65,14 +65,94 @@ struct MessageFilterView: View {
+             SGSimpleSettings.shared.messageFilterKeywords = keywords
+         }
+     }
++    @State private var newRegexPattern: String = ""
++    @State private var regexPatterns: [String] {
++        didSet {
++            AyuGramRegexFilter.shared.update { $0.patterns = regexPatterns }
++        }
++    }
++    @State private var regexFiltersEnabled: Bool {
++        didSet {
++            AyuGramRegexFilter.shared.update { $0.enabled = regexFiltersEnabled }
++        }
++    }
++    @State private var regexCaseInsensitive: Bool {
++        didSet {
++            AyuGramRegexFilter.shared.update { $0.caseInsensitive = regexCaseInsensitive }
++        }
++    }
++    @State private var regexPrivateChatsOnly: Bool {
++        didSet {
++            AyuGramRegexFilter.shared.update { $0.privateChatsOnly = regexPrivateChatsOnly }
++        }
++    }
++    @State private var filterZalgo: Bool {
++        didSet {
++            AyuGramSettings.shared.updateExtra { $0.filterZalgo = filterZalgo }
++        }
++    }
++    @State private var regexError: String?
+     
+     init(wrapperController: LegacyController?) {
+         self.wrapperController = wrapperController
+         _keywords = State(initialValue: SGSimpleSettings.shared.messageFilterKeywords)
++        let regexSettings = AyuGramRegexFilter.shared.settings
++        _regexPatterns = State(initialValue: regexSettings.patterns)
++        _regexFiltersEnabled = State(initialValue: regexSettings.enabled)
++        _regexCaseInsensitive = State(initialValue: regexSettings.caseInsensitive)
++        _regexPrivateChatsOnly = State(initialValue: regexSettings.privateChatsOnly)
++        _filterZalgo = State(initialValue: AyuGramSettings.shared.extra.filterZalgo)
+     }
+     
+     var bodyContent: some View {
+             List {
++                Section {
++                    Toggle("Ayu.RegexFiltersEnabled".i18n(lang), isOn: $regexFiltersEnabled)
++                    Toggle("Ayu.RegexCaseInsensitive".i18n(lang), isOn: $regexCaseInsensitive)
++                        .disabled(!regexFiltersEnabled)
++                    Toggle("Ayu.RegexPrivateChatsOnly".i18n(lang), isOn: $regexPrivateChatsOnly)
++                        .disabled(!regexFiltersEnabled)
++                    Toggle("Ayu.ZalgoFilter".i18n(lang), isOn: $filterZalgo)
++                    Text("Ayu.RegexFiltersInfo".i18n(lang))
++                        .font(.footnote)
++                        .foregroundColor(.secondary)
++                } header: {
++                    Text("Ayu.RegexFilters".i18n(lang))
++                }
++
++                Section {
++                    MessageFilterKeywordInputView(newKeyword: $newRegexPattern, onAdd: addRegexPattern)
++                    if let regexError {
++                        Text(regexError)
++                            .font(.footnote)
++                            .foregroundColor(.red)
++                    }
++                } header: {
++                    Text("Ayu.RegexPatterns".i18n(lang))
++                }
++
++                Section(header: Text("Ayu.RegexPatterns".i18n(lang))) {
++                    if regexPatterns.isEmpty {
++                        Text("Ayu.RegexPatternsEmpty".i18n(lang))
++                            .foregroundColor(.secondary)
++                    }
++                    ForEach(regexPatterns.reversed(), id: \.self) { pattern in
++                        HStack {
++                            Text(pattern)
++                                .font(.system(.body, design: .monospaced))
++                            Spacer()
++                            if !AyuGramRegexFilter.shared.isValidPattern(pattern, caseInsensitive: regexCaseInsensitive) {
++                                Image(systemName: "exclamationmark.triangle.fill")
++                                    .foregroundColor(.orange)
++                            }
++                        }
++                    }
++                    .onDelete { offsets in
++                        let originalIndices = IndexSet(offsets.map { regexPatterns.count - 1 - $0 })
++                        regexPatterns.remove(atOffsets: originalIndices)
++                    }
++                }
++
+                 Section {
+                     // Icon and title
+                     VStack(spacing: 8) {
+@@ -146,6 +226,24 @@ struct MessageFilterView: View {
+         newKeyword = ""
+         
+     }
++
++    private func addRegexPattern() {
++        let trimmedPattern = newRegexPattern.trimmingCharacters(in: .whitespacesAndNewlines)
++        guard !trimmedPattern.isEmpty else { return }
++        guard AyuGramRegexFilter.shared.isValidPattern(trimmedPattern, caseInsensitive: regexCaseInsensitive) else {
++            regexError = "Ayu.RegexInvalid".i18n(lang)
++            return
++        }
++        guard !regexPatterns.contains(trimmedPattern) else {
++            regexError = nil
++            return
++        }
++        withAnimation {
++            regexPatterns.append(trimmedPattern)
++        }
++        regexError = nil
++        newRegexPattern = ""
++    }
+     
+     private func deleteKeywords(at offsets: IndexSet) {
+         withAnimation {
+@@ -179,3 +262,59 @@ public func sgMessageFilterController(presentationData: PresentationData? = nil)
+ 
+     return legacyController
+ }
++
++@available(iOS 13.0, *)
++private struct AyuGramMessageMarksView: View {
++    @Environment(\.lang) private var lang: String
++    @State private var editedMark: String {
++        didSet {
++            AyuGramSettings.shared.updateExtra { $0.editedMessageMark = editedMark }
++        }
++    }
++    @State private var deletedMark: String {
++        didSet {
++            AyuGramSettings.shared.updateExtra { $0.deletedMessageMark = deletedMark }
++        }
++    }
++
++    init() {
++        let settings = AyuGramSettings.shared.extra
++        _editedMark = State(initialValue: settings.editedMessageMark)
++        _deletedMark = State(initialValue: settings.deletedMessageMark)
++    }
++
++    var body: some View {
++        NavigationView {
++            Form {
++                Section(header: Text("Ayu.EditedMark".i18n(lang))) {
++                    TextField("Ayu.EditedMarkPlaceholder".i18n(lang), text: $editedMark)
++                    Text("Ayu.EditedMarkInfo".i18n(lang))
++                        .font(.footnote)
++                        .foregroundColor(.secondary)
++                }
++                Section(header: Text("Ayu.DeletedMark".i18n(lang))) {
++                    TextField("Ayu.DeletedMarkPlaceholder".i18n(lang), text: $deletedMark)
++                    Text("Ayu.DeletedMarkInfo".i18n(lang))
++                        .font(.footnote)
++                        .foregroundColor(.secondary)
++                }
++            }
++            .navigationTitle("Ayu.MessageMarks".i18n(lang))
++        }
++    }
++}
++
++@available(iOS 13.0, *)
++public func ayuGramMessageMarksController(presentationData: PresentationData? = nil) -> ViewController {
++    let theme = presentationData?.theme ?? (UITraitCollection.current.userInterfaceStyle == .dark ? defaultDarkColorPresentationTheme : defaultPresentationTheme)
++    let strings = presentationData?.strings ?? defaultPresentationStrings
++    let legacyController = LegacySwiftUIController(presentation: .navigation, theme: theme, strings: strings)
++    legacyController.statusBar.statusBarStyle = theme.rootController.statusBarStyle.style
++    legacyController.displayNavigationBar = false
++    let swiftUIView = SGSwiftUIView<AyuGramMessageMarksView>(legacyController: legacyController, content: {
++        AyuGramMessageMarksView()
++    })
++    let controller = UIHostingController(rootView: swiftUIView, ignoreSafeArea: true)
++    legacyController.bind(controller: controller)
++    return legacyController
++}
+diff --git a/Swiftgram/SGSettingsUI/BUILD b/Swiftgram/SGSettingsUI/BUILD
+index e3a03c20..41ef569d 100644
+--- a/Swiftgram/SGSettingsUI/BUILD
++++ b/Swiftgram/SGSettingsUI/BUILD
+@@ -20,6 +20,7 @@ swift_library(
+         "//Swiftgram/SGLogging:SGLogging",
+         "//Swiftgram/SGSimpleSettings:SGSimpleSettings",
+         "//Swiftgram/SGStrings:SGStrings",
++        "//Swiftgram/SGProUI:SGProUI",
+ #        "//Swiftgram/SGAPI:SGAPI",
+         "//Swiftgram/SGAPIToken:SGAPIToken",
+         "//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
+diff --git a/Swiftgram/SGSettingsUI/Sources/AyuGramSettingsController.swift b/Swiftgram/SGSettingsUI/Sources/AyuGramSettingsController.swift
+index 194d911c..a5e7deb3 100644
+--- a/Swiftgram/SGSettingsUI/Sources/AyuGramSettingsController.swift
++++ b/Swiftgram/SGSettingsUI/Sources/AyuGramSettingsController.swift
+@@ -10,16 +10,18 @@ import ItemListUI
+ import SGItemListUI
+ import SGSimpleSettings
+ import SGStrings
++import SGProUI
+ 
+ private enum AyuSection: Int32, SGItemListSection { case privacy, history, client }
+ private enum AyuToggle: Hashable { case ghost, read, online, typing, recording, uploading, stories, history, premium }
+ private enum AyuSlider: Hashable { case pins }
+-private enum AyuUnused: Hashable { case unused, customization }
++private enum AyuUnused: Hashable { case unused, customization, filters }
+ private typealias AyuEntry = SGItemListUIEntry<AyuSection, AyuToggle, AyuSlider, AyuUnused, AyuUnused, AyuUnused>
+ 
+ public func ayuGramSettingsController(context: AccountContext) -> ViewController {
+     var openHistory: (() -> Void)?
+     var openAppearance: (() -> Void)?
++    var openFilters: (() -> Void)?
+     let changed = ValuePromise<Int>(0, ignoreRepeated: false)
+     let arguments = SGItemListArguments<AyuToggle, AyuSlider, AyuUnused, AyuUnused, AyuUnused>(context: context, setBoolValue: { key, enabled in
+         if key == .premium {
+@@ -44,7 +46,13 @@ public func ayuGramSettingsController(context: AccountContext) -> ViewController
+         AyuGramSettings.shared.updateClient { $0.maxPinnedChats = value }
+         changed.set(0)
+     }, openDisclosureLink: { link in
+-        if link == .customization { openAppearance?() } else { openHistory?() }
++        if link == .customization {
++            openAppearance?()
++        } else if link == .filters {
++            openFilters?()
++        } else {
++            openHistory?()
++        }
+     })
+     let signal = combineLatest(context.sharedContext.presentationData, changed.get())
+     |> deliverOnMainQueue
+@@ -66,6 +74,7 @@ public func ayuGramSettingsController(context: AccountContext) -> ViewController
+             .disclosure(id: 12, section: .history, link: .unused, text: i18n("Ayu.History", locale)),
+             .header(id: 15, section: .client, text: "AyuGram", badge: nil),
+             .toggle(id: 16, section: .client, settingName: .premium, value: client.localPremium, text: i18n("Ayu.LocalPremium", locale), enabled: true),
++            .disclosure(id: 17, section: .client, link: .filters, text: i18n("Ayu.RegexFilters", locale)),
+             .header(id: 18, section: .client, text: i18n("Ayu.Pins", locale), badge: nil),
+             .countSlider(id: 19, section: .client, settingName: .pins, value: client.pinnedChatLimit),
+             .notice(id: 20, section: .client, text: i18n("Ayu.LocalOnly", locale)),
+@@ -81,5 +90,8 @@ public func ayuGramSettingsController(context: AccountContext) -> ViewController
+     openAppearance = { [weak controller] in
+         (controller?.navigationController as? NavigationController)?.pushViewController(ayuGramAppearanceController(context: context))
+     }
++    openFilters = { [weak controller] in
++        (controller?.navigationController as? NavigationController)?.pushViewController(sgMessageFilterController())
++    }
+     return controller
+ }
+diff --git a/Swiftgram/SGSettingsUI/Sources/AyuGramSettingsScreen.swift b/Swiftgram/SGSettingsUI/Sources/AyuGramSettingsScreen.swift
+index 7c157962..2619fa16 100644
+--- a/Swiftgram/SGSettingsUI/Sources/AyuGramSettingsScreen.swift
++++ b/Swiftgram/SGSettingsUI/Sources/AyuGramSettingsScreen.swift
+@@ -10,6 +10,7 @@ import ItemListUI
+ import SGItemListUI
+ import SGSimpleSettings
+ import SGStrings
++import SGProUI
+ 
+ private enum AyuScreenSection: Int32 {
+     case hero, ghost, hide, behavior, content, chats, history, transfer, client, update, notifications, support
+@@ -24,7 +25,7 @@ private enum AyuScreenToggle: Equatable {
+ }
+ 
+ private enum AyuScreenLink: Equatable {
+-    case history, appearance, update, checkUpdates, channel, developer, bark, importChat, silentSending, sessionLog
++    case history, appearance, regexFilters, messageMarks, update, checkUpdates, channel, developer, bark, importChat, silentSending, sessionLog
+ }
+ 
+ private enum AyuScreenTint: Equatable {
+@@ -182,6 +183,8 @@ private func ayuScreenEntries(data: PresentationData, privacy: AyuGramPrivacySet
+ 
+     entries.append(.header(id: 600, section: .client, text: s("Ayu.ClientSection")))
+     entries.append(.toggle(id: 610, section: .client, key: .premium, symbol: "star.fill", tint: .purple, title: s("Ayu.LocalPremium"), subtitle: s("Ayu.LocalPremiumInfo"), value: client.localPremium, enabled: true))
++    entries.append(.link(id: 615, section: .client, link: .regexFilters, symbol: "line.3.horizontal.decrease.circle.fill", tint: .orange, title: s("Ayu.RegexFilters"), label: ""))
++    entries.append(.link(id: 616, section: .client, link: .messageMarks, symbol: "character.cursor.ibeam", tint: .teal, title: s("Ayu.MessageMarks"), label: ""))
+     if hasAppearance {
+         entries.append(.link(id: 620, section: .client, link: .appearance, symbol: "paintbrush.fill", tint: .pink, title: data.strings.Appearance_Title, label: ""))
+     }
+@@ -253,6 +256,10 @@ public func ayuGramSettingsScreen(context: AccountContext) -> ViewController {
+         switch link {
+         case .history:
+             pushController?(ayuGramHistoryController(context: context))
++        case .regexFilters:
++            pushController?(sgMessageFilterController())
++        case .messageMarks:
++            pushController?(ayuGramMessageMarksController())
+         case .appearance:
+             if let controller = ayuGramAppearanceEntryController(context: context) {
+                 pushController?(controller)
+diff --git a/Swiftgram/SGSimpleSettings/Sources/AyuGramSettings.swift b/Swiftgram/SGSimpleSettings/Sources/AyuGramSettings.swift
+index 22e3e212..7f60b280 100644
+--- a/Swiftgram/SGSimpleSettings/Sources/AyuGramSettings.swift
++++ b/Swiftgram/SGSimpleSettings/Sources/AyuGramSettings.swift
+@@ -179,6 +179,26 @@ public struct AyuGramExtraSettings: Codable, Equatable {
+     public var confirmStickers = false
+     public var confirmGifs = false
+     public var confirmReadReceipt = true
++    public var confirmVoiceMessages = false
++    public var confirmVideoMessages = false
++    /// Optional replacement for the label shown next to edited message times.
++    public var editedMessageMark = ""
++    /// Optional replacement for the marker shown on messages kept after deletion.
++    public var deletedMessageMark = ""
++    /// Controls whether deleted cloud messages are retained locally.
++    public var saveDeletedMessages = true
++    /// Controls whether the previous text/media of edited messages is kept locally.
++    public var saveEditedMessages = true
++    /// Include bot conversations in the AyuGram message history.
++    public var saveInBotChats = true
++    /// Show message times with seconds in the chat history.
++    public var showMessageSeconds = false
++    /// Dim incoming messages with extreme combining diacritic marks.
++    public var filterZalgo = false
++    /// Hide the story strip above the chat list.
++    public var hideStories = false
++    /// Hide channel recommendations after the chat history.
++    public var disableSimilarChannels = false
+ 
+     public var sendsSilently: Bool {
+         return silentSending == 2 || (silentSending == 1 && AyuGramSettings.shared.snapshot.ghostMode)
+@@ -204,6 +222,17 @@ public struct AyuGramExtraSettings: Codable, Equatable {
+         self.confirmStickers = try container.decodeIfPresent(Bool.self, forKey: .confirmStickers) ?? defaults.confirmStickers
+         self.confirmGifs = try container.decodeIfPresent(Bool.self, forKey: .confirmGifs) ?? defaults.confirmGifs
+         self.confirmReadReceipt = try container.decodeIfPresent(Bool.self, forKey: .confirmReadReceipt) ?? defaults.confirmReadReceipt
++        self.confirmVoiceMessages = try container.decodeIfPresent(Bool.self, forKey: .confirmVoiceMessages) ?? defaults.confirmVoiceMessages
++        self.confirmVideoMessages = try container.decodeIfPresent(Bool.self, forKey: .confirmVideoMessages) ?? defaults.confirmVideoMessages
++        self.editedMessageMark = try container.decodeIfPresent(String.self, forKey: .editedMessageMark) ?? defaults.editedMessageMark
++        self.deletedMessageMark = try container.decodeIfPresent(String.self, forKey: .deletedMessageMark) ?? defaults.deletedMessageMark
++        self.saveDeletedMessages = try container.decodeIfPresent(Bool.self, forKey: .saveDeletedMessages) ?? defaults.saveDeletedMessages
++        self.saveEditedMessages = try container.decodeIfPresent(Bool.self, forKey: .saveEditedMessages) ?? defaults.saveEditedMessages
++        self.saveInBotChats = try container.decodeIfPresent(Bool.self, forKey: .saveInBotChats) ?? defaults.saveInBotChats
++        self.showMessageSeconds = try container.decodeIfPresent(Bool.self, forKey: .showMessageSeconds) ?? defaults.showMessageSeconds
++        self.filterZalgo = try container.decodeIfPresent(Bool.self, forKey: .filterZalgo) ?? defaults.filterZalgo
++        self.hideStories = try container.decodeIfPresent(Bool.self, forKey: .hideStories) ?? defaults.hideStories
++        self.disableSimilarChannels = try container.decodeIfPresent(Bool.self, forKey: .disableSimilarChannels) ?? defaults.disableSimilarChannels
+     }
+ }
+ 
+@@ -240,3 +267,118 @@ public extension AyuGramSettings {
+         update { $0.ghostMode = enabled }
+     }
+ }
++
++/// AyuGram Android's regex-filter settings, stored independently so old client
++/// preferences remain readable when this module is added.
++public struct AyuGramRegexFilterSettings: Codable, Equatable {
++    public var enabled = false
++    public var caseInsensitive = true
++    public var privateChatsOnly = false
++    public var patterns: [String] = []
++
++    public init() {}
++
++    public init(from decoder: Decoder) throws {
++        let container = try decoder.container(keyedBy: CodingKeys.self)
++        let defaults = AyuGramRegexFilterSettings()
++        self.enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? defaults.enabled
++        self.caseInsensitive = try container.decodeIfPresent(Bool.self, forKey: .caseInsensitive) ?? defaults.caseInsensitive
++        self.privateChatsOnly = try container.decodeIfPresent(Bool.self, forKey: .privateChatsOnly) ?? defaults.privateChatsOnly
++        self.patterns = try container.decodeIfPresent([String].self, forKey: .patterns) ?? defaults.patterns
++    }
++}
++
++/// Native iOS implementation of AyuGram4A's AyuFilter matching behavior.
++/// AyuFilter.java copyright @Radolyn, 2023; adapted for Foundation regex APIs.
++public final class AyuGramRegexFilter {
++    public static let shared = AyuGramRegexFilter()
++
++    private let defaults: UserDefaults
++    private let storageKey = "ayugram.regexFilters.v1"
++    private let lock = NSLock()
++    private var cachedSettings: AyuGramRegexFilterSettings?
++    private var cachedExpressions: [(String, NSRegularExpression)] = []
++
++    public init(defaults: UserDefaults = .standard) {
++        self.defaults = defaults
++    }
++
++    public var settings: AyuGramRegexFilterSettings {
++        lock.lock()
++        defer { lock.unlock() }
++        return readSettings()
++    }
++
++    public func update(_ transform: (inout AyuGramRegexFilterSettings) -> Void) {
++        lock.lock()
++        var value = readSettings()
++        transform(&value)
++        if let data = try? JSONEncoder().encode(value) {
++            defaults.set(data, forKey: storageKey)
++        }
++        cachedSettings = value
++        cachedExpressions = compile(value)
++        lock.unlock()
++    }
++
++    /// Returns the first matching expression, like AyuGram4A's AyuFilter.
++    /// Matching is restricted to incoming chat messages by the message renderer.
++    public func matchedPattern(in text: String, isPrivateChat: Bool = false) -> String? {
++        guard !text.isEmpty else { return nil }
++
++        lock.lock()
++        let value = readSettings()
++        if cachedSettings != value {
++            cachedSettings = value
++            cachedExpressions = compile(value)
++        }
++        let enabled = value.enabled
++        let privateChatsOnly = value.privateChatsOnly
++        let expressions = cachedExpressions
++        lock.unlock()
++
++        guard enabled, (!privateChatsOnly || isPrivateChat) else { return nil }
++        // Keep an unexpectedly large message from making rendering work unbounded.
++        let boundedText = String(text.prefix(20_000))
++        let range = NSRange(boundedText.startIndex..<boundedText.endIndex, in: boundedText)
++        for (pattern, expression) in expressions where expression.firstMatch(in: boundedText, range: range) != nil {
++            return pattern
++        }
++        return nil
++    }
++
++    public func containsZalgo(_ text: String) -> Bool {
++        var consecutiveCombiningMarks = 0
++        for scalar in text.unicodeScalars {
++            if CharacterSet.nonBaseCharacters.contains(scalar) {
++                consecutiveCombiningMarks += 1
++                if consecutiveCombiningMarks >= 3 { return true }
++            } else {
++                consecutiveCombiningMarks = 0
++            }
++        }
++        return false
++    }
++
++    public func isValidPattern(_ pattern: String, caseInsensitive: Bool? = nil) -> Bool {
++        let insensitive = caseInsensitive ?? settings.caseInsensitive
++        let options: NSRegularExpression.Options = insensitive ? [.caseInsensitive, .anchorsMatchLines] : [.anchorsMatchLines]
++        return (try? NSRegularExpression(pattern: pattern, options: options)) != nil
++    }
++
++    private func readSettings() -> AyuGramRegexFilterSettings {
++        if let cachedSettings { return cachedSettings }
++        let value = defaults.data(forKey: storageKey).flatMap { try? JSONDecoder().decode(AyuGramRegexFilterSettings.self, from: $0) } ?? AyuGramRegexFilterSettings()
++        cachedSettings = value
++        cachedExpressions = compile(value)
++        return value
++    }
++
++    private func compile(_ settings: AyuGramRegexFilterSettings) -> [(String, NSRegularExpression)] {
++        let options: NSRegularExpression.Options = settings.caseInsensitive ? [.caseInsensitive, .anchorsMatchLines] : [.anchorsMatchLines]
++        return settings.patterns.compactMap { pattern in
++            guard let expression = try? NSRegularExpression(pattern: pattern, options: options) else { return nil }
++            return (pattern, expression)
++        }
++    }
++}
+diff --git a/Swiftgram/SGStrings/Strings/en.lproj/SGLocalizable.strings b/Swiftgram/SGStrings/Strings/en.lproj/SGLocalizable.strings
+index 15684797..3b431834 100644
+--- a/Swiftgram/SGStrings/Strings/en.lproj/SGLocalizable.strings
++++ b/Swiftgram/SGStrings/Strings/en.lproj/SGLocalizable.strings
+@@ -430,3 +430,29 @@
+ "Ayu.ViewDeletedInfo" = "Chats with deleted messages kept on this device. Open one to read its deleted messages or the whole chat.";
+ "Ayu.ViewDeletedEmpty" = "No deleted messages yet.";
+ "Ayu.ConfirmReadReceipt" = "Confirm read receipts";
++"Ayu.ConfirmVoiceMessages" = "Confirm sending voice messages";
++"Ayu.ConfirmVideoMessages" = "Confirm sending video messages";
++"Ayu.ConfirmVoice" = "Send this voice message?";
++"Ayu.ConfirmVideo" = "Send this video message?";
++"Ayu.RegexFilters" = "AyuGram filters";
++"Ayu.RegexFiltersEnabled" = "Enable regular expression filters";
++"Ayu.RegexCaseInsensitive" = "Ignore case";
++"Ayu.RegexPrivateChatsOnly" = "Apply filters only in private chats";
++"Ayu.KeepDeletedInChats" = "Keep deleted messages in chats";
++"Ayu.KeepEditedMessages" = "Keep edited message history";
++"Ayu.KeepBotChats" = "Save history in bot chats";
++"Ayu.ShowMessageSeconds" = "Show seconds in message times";
++"Ayu.ZalgoFilter" = "Filter Zalgo text";
++"Ayu.HideStoryStrip" = "Hide stories above chat list";
++"Ayu.DisableSimilarChannels" = "Hide similar channels in chats";
++"Ayu.RegexFiltersInfo" = "Matching incoming messages are dimmed. Java/ICU-style regular expressions are used, with multiline matching.";
++"Ayu.RegexPatterns" = "Regular expressions";
++"Ayu.RegexPatternsEmpty" = "No filters added yet";
++"Ayu.RegexInvalid" = "Invalid regular expression";
++"Ayu.MessageMarks" = "Message labels";
++"Ayu.EditedMark" = "Edited message label";
++"Ayu.EditedMarkPlaceholder" = "Blank uses the default label";
++"Ayu.EditedMarkInfo" = "Text shown before the message time in place of “Edited”.";
++"Ayu.DeletedMark" = "Saved deleted message marker";
++"Ayu.DeletedMarkPlaceholder" = "Blank uses the trash icon";
++"Ayu.DeletedMarkInfo" = "Text shown before the time of a message AyuGram saved in history.";
+diff --git a/Swiftgram/SGStrings/Strings/ru.lproj/SGLocalizable.strings b/Swiftgram/SGStrings/Strings/ru.lproj/SGLocalizable.strings
+index af39aaf8..781de959 100644
+--- a/Swiftgram/SGStrings/Strings/ru.lproj/SGLocalizable.strings
++++ b/Swiftgram/SGStrings/Strings/ru.lproj/SGLocalizable.strings
+@@ -425,3 +425,29 @@
+ "Ayu.ViewDeletedInfo" = "Чаты, где на этом устройстве сохранены удалённые сообщения. Открой чат, чтобы посмотреть его удалённые сообщения или весь чат.";
+ "Ayu.ViewDeletedEmpty" = "Удалённых сообщений пока нет.";
+ "Ayu.ConfirmReadReceipt" = "Подтверждать отправку прочтения";
++"Ayu.ConfirmVoiceMessages" = "Подтверждать отправку голосовых сообщений";
++"Ayu.ConfirmVideoMessages" = "Подтверждать отправку видеосообщений";
++"Ayu.ConfirmVoice" = "Отправить это голосовое сообщение?";
++"Ayu.ConfirmVideo" = "Отправить это видеосообщение?";
++"Ayu.RegexFilters" = "Фильтры AyuGram";
++"Ayu.RegexFiltersEnabled" = "Включить фильтры регулярных выражений";
++"Ayu.RegexCaseInsensitive" = "Не учитывать регистр";
++"Ayu.RegexPrivateChatsOnly" = "Применять фильтры только в личных чатах";
++"Ayu.KeepDeletedInChats" = "Сохранять удалённые сообщения в чатах";
++"Ayu.KeepEditedMessages" = "Сохранять историю изменений сообщений";
++"Ayu.KeepBotChats" = "Сохранять историю в чатах с ботами";
++"Ayu.ShowMessageSeconds" = "Показывать секунды у сообщений";
++"Ayu.ZalgoFilter" = "Фильтровать Zalgo-текст";
++"Ayu.HideStoryStrip" = "Скрывать истории над списком чатов";
++"Ayu.DisableSimilarChannels" = "Скрывать похожие каналы в чатах";
++"Ayu.RegexFiltersInfo" = "Совпавшие входящие сообщения становятся полупрозрачными. Используются регулярные выражения Java/ICU; поиск учитывает переносы строк.";
++"Ayu.RegexPatterns" = "Регулярные выражения";
++"Ayu.RegexPatternsEmpty" = "Фильтры ещё не добавлены";
++"Ayu.RegexInvalid" = "Некорректное регулярное выражение";
++"Ayu.MessageMarks" = "Метки сообщений";
++"Ayu.EditedMark" = "Метка отредактированного сообщения";
++"Ayu.EditedMarkPlaceholder" = "Пусто — использовать стандартную метку";
++"Ayu.EditedMarkInfo" = "Текст перед временем сообщения. Изменение применяется к подписи «Изменено».";
++"Ayu.DeletedMark" = "Метка сохранённого удалённого сообщения";
++"Ayu.DeletedMarkPlaceholder" = "Пусто — использовать значок корзины";
++"Ayu.DeletedMarkInfo" = "Текст перед временем сообщения, сохранённого в истории AyuGram.";
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/ChatMessageDateAndStatusNode.swift b/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/ChatMessageDateAndStatusNode.swift
+index f9884869..1c6a6540 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/ChatMessageDateAndStatusNode.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/ChatMessageDateAndStatusNode.swift
+@@ -608,7 +608,9 @@ public class ChatMessageDateAndStatusNode: ASDisplayNode {
+             if arguments.edited {
+                 if let useEditedTimestamp = arguments.context.getAppConfigValue("message_primary_edited_date") as? Bool, useEditedTimestamp {
+                 } else {
+-                    updatedDateText = "\(arguments.presentationData.strings.Conversation_MessageEditedLabel) \(updatedDateText)"
++                    let customMark = AyuGramSettings.shared.extra.editedMessageMark.trimmingCharacters(in: .whitespacesAndNewlines)
++                    let editedLabel = customMark.isEmpty ? arguments.presentationData.strings.Conversation_MessageEditedLabel : customMark
++                    updatedDateText = "\(editedLabel) \(updatedDateText)"
+                 }
+             }
+             if let impressionCount = arguments.impressionCount {
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/StringForMessageTimestampStatus.swift b/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/StringForMessageTimestampStatus.swift
+index 8ee8444b..1e2535fd 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/StringForMessageTimestampStatus.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/StringForMessageTimestampStatus.swift
+@@ -1,4 +1,5 @@
+ import Foundation
++import SGSimpleSettings
+ import TelegramCore
+ import TelegramPresentationData
+ import TelegramUIPreferences
+@@ -251,6 +252,9 @@ public func stringForMessageTimestampStatus(
+         }
+     }
+     
+-    if message._asMessage().ayuHistory?.deletedAt != nil { dateText = "🗑︎ " + dateText }
++    if message._asMessage().ayuHistory?.deletedAt != nil {
++        let customMark = AyuGramSettings.shared.extra.deletedMessageMark.trimmingCharacters(in: .whitespacesAndNewlines)
++        dateText = (customMark.isEmpty ? "🗑︎" : customMark) + " " + dateText
++    }
+     return dateText
+ }
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageItemView/Sources/ChatMessageItemView.swift b/submodules/TelegramUI/Components/Chat/ChatMessageItemView/Sources/ChatMessageItemView.swift
+index 207e3466..1572c9b3 100644
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageItemView/Sources/ChatMessageItemView.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageItemView/Sources/ChatMessageItemView.swift
+@@ -699,12 +699,20 @@ open class ChatMessageItemView: ListViewItemNode, ChatMessageItemNodeProtocol {
+     open func setupItem(_ item: ChatMessageItem, synchronousLoad: Bool) {
+         self.item = item
+         
+-        if !self.wasFilteredKeywordTested && !SGSimpleSettings.shared.messageFilterKeywords.isEmpty && SGSimpleSettings.shared.ephemeralStatus > 1 {
++        if !self.wasFilteredKeywordTested {
+             let incomingMessage = item.message.effectivelyIncoming(item.context.account.peerId)
+             if incomingMessage {
+-                if let matchedKeyword = SGSimpleSettings.shared.messageFilterKeywords.first(where: { item.message.text.contains($0) }) {
+-                     self.matchedFilterKeyword = matchedKeyword
+-                     self.alpha = item.presentationData.theme.theme.overallDarkAppearance ? 0.2 : 0.3
++                self.matchedFilterKeyword = AyuGramRegexFilter.shared.matchedPattern(in: item.message.text, isPrivateChat: item.message.id.peerId.namespace == Namespaces.Peer.CloudUser)
++                if self.matchedFilterKeyword == nil && !SGSimpleSettings.shared.messageFilterKeywords.isEmpty && SGSimpleSettings.shared.ephemeralStatus > 1 {
++                    self.matchedFilterKeyword = SGSimpleSettings.shared.messageFilterKeywords.first(where: { item.message.text.contains($0) })
++                }
++                if self.matchedFilterKeyword == nil,
++                   AyuGramSettings.shared.extra.filterZalgo,
++                   AyuGramRegexFilter.shared.containsZalgo(item.message.text) {
++                    self.matchedFilterKeyword = "Zalgo"
++                }
++                if self.matchedFilterKeyword != nil {
++                    self.alpha = item.presentationData.theme.theme.overallDarkAppearance ? 0.2 : 0.3
+                 }
+             }
+         }

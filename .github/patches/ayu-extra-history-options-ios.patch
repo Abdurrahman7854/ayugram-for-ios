@@ -1,0 +1,220 @@
+diff --git a/Swiftgram/SGSettingsUI/Sources/AyuGramSettingsScreen.swift b/Swiftgram/SGSettingsUI/Sources/AyuGramSettingsScreen.swift
+--- a/Swiftgram/SGSettingsUI/Sources/AyuGramSettingsScreen.swift
++++ b/Swiftgram/SGSettingsUI/Sources/AyuGramSettingsScreen.swift
+@@ -19,8 +19,8 @@
+     case ghost, read, online, typing, recording, uploading, stories
+     case offlineAfterSending, readOnSend, quickToggle
+     case ignoreProtection, screenshots
+-    case history, premium
+-    case scheduleInGhost, disableAds, disableLinkWarning, disableGreeting, dimDeleted, repeatMessage, confirmStickers, confirmGifs, confirmRead
++    case history, premium, saveDeleted, saveEdited, saveBots, showSeconds, hideStories, disableSimilarChannels
++    case scheduleInGhost, disableAds, disableLinkWarning, disableGreeting, dimDeleted, repeatMessage, confirmStickers, confirmGifs, confirmVoice, confirmVideo, confirmRead
+ }
+ 
+ private enum AyuScreenLink: Equatable {
+@@ -162,17 +162,25 @@
+     entries.append(.footer(id: 430, section: .content, text: s("Ayu.ContentFooter")))
+ 
+     entries.append(.header(id: 431, section: .chats, text: s("Ayu.ChatsSection")))
++    entries.append(.toggle(id: 4311, section: .chats, key: .hideStories, symbol: "eye.slash.fill", tint: .purple, title: s("Ayu.HideStoryStrip"), subtitle: nil, value: extra.hideStories, enabled: true))
++    entries.append(.toggle(id: 4312, section: .chats, key: .disableSimilarChannels, symbol: "rectangle.stack.badge.minus", tint: .orange, title: s("Ayu.DisableSimilarChannels"), subtitle: nil, value: extra.disableSimilarChannels, enabled: true))
+     entries.append(.toggle(id: 432, section: .chats, key: .disableAds, symbol: "megaphone.fill", tint: .orange, title: s("Ayu.DisableAds"), subtitle: nil, value: extra.disableAds, enabled: true))
+     entries.append(.toggle(id: 433, section: .chats, key: .disableLinkWarning, symbol: "link", tint: .blue, title: s("Ayu.DisableLinkWarning"), subtitle: nil, value: extra.disableLinkWarning, enabled: true))
+     entries.append(.toggle(id: 434, section: .chats, key: .disableGreeting, symbol: "hand.wave.fill", tint: .green, title: s("Ayu.DisableGreeting"), subtitle: nil, value: extra.disableGreetingSticker, enabled: true))
++    entries.append(.toggle(id: 4341, section: .chats, key: .showSeconds, symbol: "clock.fill", tint: .teal, title: s("Ayu.ShowMessageSeconds"), subtitle: nil, value: extra.showMessageSeconds, enabled: true))
+     entries.append(.toggle(id: 435, section: .chats, key: .dimDeleted, symbol: "circle.lefthalf.filled", tint: .red, title: s("Ayu.DimDeleted"), subtitle: nil, value: extra.dimDeletedMessages, enabled: true))
+     entries.append(.toggle(id: 436, section: .chats, key: .repeatMessage, symbol: "arrow.2.squarepath", tint: .indigo, title: s("Ayu.RepeatMessage"), subtitle: nil, value: extra.repeatMessage, enabled: true))
+     entries.append(.toggle(id: 437, section: .chats, key: .confirmStickers, symbol: "face.smiling.inverse", tint: .pink, title: s("Ayu.ConfirmStickers"), subtitle: nil, value: extra.confirmStickers, enabled: true))
+     entries.append(.toggle(id: 438, section: .chats, key: .confirmGifs, symbol: "play.rectangle.fill", tint: .purple, title: s("Ayu.ConfirmGifs"), subtitle: nil, value: extra.confirmGifs, enabled: true))
++    entries.append(.toggle(id: 4381, section: .chats, key: .confirmVoice, symbol: "waveform", tint: .teal, title: s("Ayu.ConfirmVoiceMessages"), subtitle: nil, value: extra.confirmVoiceMessages, enabled: true))
++    entries.append(.toggle(id: 4382, section: .chats, key: .confirmVideo, symbol: "video.fill", tint: .pink, title: s("Ayu.ConfirmVideoMessages"), subtitle: nil, value: extra.confirmVideoMessages, enabled: true))
+     entries.append(.footer(id: 439, section: .chats, text: s("Ayu.LocalOnly")))
+ 
+     entries.append(.header(id: 500, section: .history, text: s("Ayu.History")))
+     entries.append(.toggle(id: 510, section: .history, key: .history, symbol: "trash.fill", tint: .red, title: s("Ayu.SaveDeleted"), subtitle: s("Ayu.SaveDeletedInfo"), value: privacy.messageHistory, enabled: true))
++    entries.append(.toggle(id: 512, section: .history, key: .saveDeleted, symbol: "trash.fill", tint: .red, title: s("Ayu.KeepDeletedInChats"), subtitle: nil, value: extra.saveDeletedMessages, enabled: privacy.messageHistory))
++    entries.append(.toggle(id: 514, section: .history, key: .saveEdited, symbol: "pencil", tint: .orange, title: s("Ayu.KeepEditedMessages"), subtitle: nil, value: extra.saveEditedMessages, enabled: privacy.messageHistory))
++    entries.append(.toggle(id: 516, section: .history, key: .saveBots, symbol: "person.2.fill", tint: .blue, title: s("Ayu.KeepBotChats"), subtitle: nil, value: extra.saveInBotChats, enabled: privacy.messageHistory))
+     entries.append(.link(id: 520, section: .history, link: .history, symbol: "clock.fill", tint: .teal, title: s("Ayu.OpenHistory"), label: ""))
+     entries.append(.footer(id: 530, section: .history, text: s("Ayu.HistoryInfo")))
+ 
+@@ -245,7 +253,15 @@
+         case .repeatMessage: settings.updateExtra { $0.repeatMessage = value }
+         case .confirmStickers: settings.updateExtra { $0.confirmStickers = value }
+         case .confirmGifs: settings.updateExtra { $0.confirmGifs = value }
++        case .confirmVoice: settings.updateExtra { $0.confirmVoiceMessages = value }
++        case .confirmVideo: settings.updateExtra { $0.confirmVideoMessages = value }
+         case .confirmRead: settings.updateExtra { $0.confirmReadReceipt = value }
++        case .saveDeleted: settings.updateExtra { $0.saveDeletedMessages = value }
++        case .saveEdited: settings.updateExtra { $0.saveEditedMessages = value }
++        case .saveBots: settings.updateExtra { $0.saveInBotChats = value }
++        case .showSeconds: settings.updateExtra { $0.showMessageSeconds = value }
++        case .hideStories: settings.updateExtra { $0.hideStories = value }
++        case .disableSimilarChannels: settings.updateExtra { $0.disableSimilarChannels = value }
+         }
+     }, updatePins: { value in
+         AyuGramSettings.shared.updateClient { $0.maxPinnedChats = value }
+diff --git a/submodules/TelegramCore/Sources/TelegramEngine/Messages/AyuGramMessageHistory.swift b/submodules/TelegramCore/Sources/TelegramEngine/Messages/AyuGramMessageHistory.swift
+--- a/submodules/TelegramCore/Sources/TelegramEngine/Messages/AyuGramMessageHistory.swift
++++ b/submodules/TelegramCore/Sources/TelegramEngine/Messages/AyuGramMessageHistory.swift
+@@ -126,17 +126,22 @@
+     guard id.namespace == Namespaces.Message.Cloud, id.peerId.namespace != Namespaces.Peer.SecretChat,
+           let message = transaction.getMessage(id), !message.isCopyProtected(), !message.containsSecretMedia,
+           !message.attributes.contains(where: { $0 is AutoremoveTimeoutMessageAttribute || $0 is AutoclearTimeoutMessageAttribute }) else { return false }
++    if !AyuGramSettings.shared.extra.saveInBotChats,
++       (transaction.getPeer(id.peerId) as? TelegramUser)?.botInfo != nil { return false }
+     return !message.text.isEmpty || !message.media.isEmpty
+ }
+ 
+ /// Messages Save Deleted Messages keeps in chats outside Message history.
+ func ayuGramIsRetainable(transaction: Transaction, id: MessageId) -> Bool {
+-    return ayuGramIsHistoryCandidate(transaction: transaction, id: id)
++    return AyuGramSettings.shared.extra.saveDeletedMessages && ayuGramIsHistoryCandidate(transaction: transaction, id: id)
+ }
+ 
+ @discardableResult
+ func ayuGramRecordHistory(transaction: Transaction, mediaBox: MediaBox, ids: [MessageId], event: String) -> Set<MessageId> {
+     guard AyuGramSettings.shared.snapshot.messageHistory else { return [] }
++    let extra = AyuGramSettings.shared.extra
++    if event == "deleted" && !extra.saveDeletedMessages { return [] }
++    if event == "edited" && !extra.saveEditedMessages { return [] }
+     let policy = transaction.getPreferencesEntry(key: ayuGramHistoryPolicyKey)?.get(AyuGramHistoryPolicy.self) ?? AyuGramHistoryPolicy()
+     let selected = Set(policy.selectedChats)
+     guard !selected.isEmpty else { return [] }
+diff --git a/submodules/TelegramCore/Sources/TelegramEngine/Messages/AyuGramRetainedMessages.swift b/submodules/TelegramCore/Sources/TelegramEngine/Messages/AyuGramRetainedMessages.swift
+--- a/submodules/TelegramCore/Sources/TelegramEngine/Messages/AyuGramRetainedMessages.swift
++++ b/submodules/TelegramCore/Sources/TelegramEngine/Messages/AyuGramRetainedMessages.swift
+@@ -9,7 +9,7 @@
+     let policy = transaction.getPreferencesEntry(key: applicationSpecificPreferencesKey(0x415956))?.get(AyuGramHistoryPolicy.self) ?? AyuGramHistoryPolicy()
+     var retained: [StoreMessage] = []
+     // Every chat keeps its deleted messages; only the selected chats are also listed in Message history.
+-    let keepAll = AyuGramSettings.shared.snapshot.messageHistory
++    let keepAll = AyuGramSettings.shared.snapshot.messageHistory && AyuGramSettings.shared.extra.saveDeletedMessages
+     for id in ids where recorded.contains(id) || (keepAll && ayuGramIsRetainable(transaction: transaction, id: id)) {
+         guard let message = transaction.getMessage(id) else { continue }
+         // A kept copy of a one-time or timer message must not expire again.
+@@ -46,7 +46,7 @@
+     let saved = ayuGramRecordHistory(transaction: transaction, mediaBox: mediaBox, ids: [id], event: "edited")
+     if saved.contains(id) {
+         ayuGramCompleteEditSnapshot(transaction: transaction, id: id, updatedText: updated.text)
+-    } else if !(AyuGramSettings.shared.snapshot.messageHistory && ayuGramIsHistoryCandidate(transaction: transaction, id: id)) {
++    } else if !(AyuGramSettings.shared.extra.saveEditedMessages && AyuGramSettings.shared.snapshot.messageHistory && ayuGramIsHistoryCandidate(transaction: transaction, id: id)) {
+         return previous.ayuHistory
+     }
+     // Chats outside Message history keep the version before the first edit on the message
+diff --git a/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/StringForMessageTimestampStatus.swift b/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/StringForMessageTimestampStatus.swift
+--- a/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/StringForMessageTimestampStatus.swift
++++ b/submodules/TelegramUI/Components/Chat/ChatMessageDateAndStatusNode/Sources/StringForMessageTimestampStatus.swift
+@@ -107,7 +107,8 @@
+         timestamp = orignalDate
+     }
+     
+-    var dateText = stringForMessageTimestamp(timestamp: timestamp, dateTimeFormat: dateTimeFormat)
++    let showSeconds = AyuGramSettings.shared.extra.showMessageSeconds
++    var dateText = stringForMessageTimestamp(timestamp: timestamp, dateTimeFormat: dateTimeFormat, withSeconds: showSeconds)
+     if timestamp == scheduleWhenOnlineTimestamp {
+         dateText = "         "
+     }
+@@ -171,15 +172,15 @@
+         }
+         if isFullEditedDate {
+             if dayText.isEmpty {
+-                dateText = strings.Message_EditTodayFullDateFormat(stringForMessageTimestamp(timestamp: timestamp, dateTimeFormat: dateTimeFormat)).string
+-            } else {
+-                dateText = strings.Message_EditFullDateFormat(dayText, stringForMessageTimestamp(timestamp: timestamp, dateTimeFormat: dateTimeFormat)).string
++                dateText = strings.Message_EditTodayFullDateFormat(stringForMessageTimestamp(timestamp: timestamp, dateTimeFormat: dateTimeFormat, withSeconds: showSeconds)).string
++            } else {
++                dateText = strings.Message_EditFullDateFormat(dayText, stringForMessageTimestamp(timestamp: timestamp, dateTimeFormat: dateTimeFormat, withSeconds: showSeconds)).string
+             }
+         } else {
+-            dateText = strings.Message_FullDateFormat(dayText, stringForMessageTimestamp(timestamp: timestamp, dateTimeFormat: dateTimeFormat)).string
++            dateText = strings.Message_FullDateFormat(dayText, stringForMessageTimestamp(timestamp: timestamp, dateTimeFormat: dateTimeFormat, withSeconds: showSeconds)).string
+         }
+     } else if let forwardInfo = message.forwardInfo, forwardInfo.flags.contains(.isImported) {
+-        dateText = strings.Message_ImportedDateFormat(dateStringForDay(strings: strings, dateTimeFormat: dateTimeFormat, timestamp: forwardInfo.date), stringForMessageTimestamp(timestamp: forwardInfo.date, dateTimeFormat: dateTimeFormat), dateText).string
++        dateText = strings.Message_ImportedDateFormat(dateStringForDay(strings: strings, dateTimeFormat: dateTimeFormat, timestamp: forwardInfo.date), stringForMessageTimestamp(timestamp: forwardInfo.date, dateTimeFormat: dateTimeFormat, withSeconds: showSeconds), dateText).string
+     }
+     
+     var authorTitle: String?
+diff --git a/submodules/TelegramUI/Components/ChatListHeaderComponent/Sources/ChatListHeaderComponent.swift b/submodules/TelegramUI/Components/ChatListHeaderComponent/Sources/ChatListHeaderComponent.swift
+--- a/submodules/TelegramUI/Components/ChatListHeaderComponent/Sources/ChatListHeaderComponent.swift
++++ b/submodules/TelegramUI/Components/ChatListHeaderComponent/Sources/ChatListHeaderComponent.swift
+@@ -8,6 +8,7 @@
+ import StoryPeerListComponent
+ import TelegramCore
+ import NavigationBarComponent
++import SGSimpleSettings
+ 
+ /// The chat list's header: the generic navigation bar row (`NavigationBarComponent`) plus what only the chat
+ /// list has: the story list, the chat-list title (network status, lock, emoji status) and the proxy button.
+@@ -472,7 +473,9 @@
+ 
+                 storyListTransition.setFrame(view: storyPeerListComponentView, frame: CGRect(origin: CGPoint(x: storiesX, y: storyPeerListMaxOffset), size: CGSize(width: centeredContentFrame.width, height: 79.0)))
+ 
+-                let storyListNormalAlpha: CGFloat = 1.0
++                let hideStoryStrip = AyuGramSettings.shared.extra.hideStories
++                storyPeerListComponentView.isUserInteractionEnabled = !hideStoryStrip
++                let storyListNormalAlpha: CGFloat = hideStoryStrip ? 0.0 : 1.0
+ 
+                 let storyListAlpha: CGFloat = (1.0 - component.secondaryTransition) * storyListNormalAlpha
+                 storyListTransition.setAlpha(view: storyPeerListComponentView, alpha: storyListAlpha)
+diff --git a/submodules/TelegramUI/Components/ChatListHeaderComponent/BUILD b/submodules/TelegramUI/Components/ChatListHeaderComponent/BUILD
+--- a/submodules/TelegramUI/Components/ChatListHeaderComponent/BUILD
++++ b/submodules/TelegramUI/Components/ChatListHeaderComponent/BUILD
+@@ -10,6 +10,7 @@
+         "-warnings-as-errors",
+     ],
+     deps = [
++        "//Swiftgram/SGSimpleSettings:SGSimpleSettings",
+         "//submodules/SSignalKit/SwiftSignalKit",
+         "//submodules/Display",
+         "//submodules/ComponentFlow",
+diff --git a/submodules/TelegramUI/Sources/ChatHistoryListNode.swift b/submodules/TelegramUI/Sources/ChatHistoryListNode.swift
+--- a/submodules/TelegramUI/Sources/ChatHistoryListNode.swift
++++ b/submodules/TelegramUI/Sources/ChatHistoryListNode.swift
+@@ -475,7 +475,7 @@
+         automaticDownloadPeerId = message.peerId
+     }
+     
+-    return ChatMessageItemAssociatedData(translateToLanguageSG: translateToLanguageSG, translationSettings: translationSettings, /* MARK: Swiftgram */ automaticDownloadPeerType: automaticMediaDownloadPeerType, automaticDownloadPeerId: automaticDownloadPeerId, automaticDownloadNetworkType: automaticDownloadNetworkType, preferredStoryHighQuality: preferredStoryHighQuality, isRecentActions: false, subject: subject, contactsPeerIds: contactsPeerIds, channelDiscussionGroup: channelDiscussionGroup, animatedEmojiStickers: animatedEmojiStickers, additionalAnimatedEmojiStickers: additionalAnimatedEmojiStickers, premiumGiftStickers: premiumGiftStickers, tonGiftStickers: tonGiftStickers, currentlyPlayingMessageId: currentlyPlayingMessageId, isCopyProtectionEnabled: isCopyProtectionEnabled, availableReactions: availableReactions, availableMessageEffects: availableMessageEffects, savedMessageTags: savedMessageTags, defaultReaction: defaultReaction, areStarReactionsEnabled: areStarReactionsEnabled, isPremium: isPremium, accountPeer: accountPeer, alwaysDisplayTranscribeButton: alwaysDisplayTranscribeButton, topicAuthorId: topicAuthorId, hasBots: hasBots, translateToLanguage: translateToLanguage, maxReadStoryId: maxReadStoryId, recommendedChannels: recommendedChannels, audioTranscriptionTrial: audioTranscriptionTrial, chatThemes: chatThemes, deviceContactsNumbers: deviceContactsNumbers, isInline: isInline, showSensitiveContent: showSensitiveContent, isSuspiciousPeer: isSuspiciousPeer, accountCountry: accountCountry, isParticipant: isParticipant, invitedOn: invitedOn)
++    return ChatMessageItemAssociatedData(translateToLanguageSG: translateToLanguageSG, translationSettings: translationSettings, /* MARK: Swiftgram */ automaticDownloadPeerType: automaticMediaDownloadPeerType, automaticDownloadPeerId: automaticDownloadPeerId, automaticDownloadNetworkType: automaticDownloadNetworkType, preferredStoryHighQuality: preferredStoryHighQuality, isRecentActions: false, subject: subject, contactsPeerIds: contactsPeerIds, channelDiscussionGroup: channelDiscussionGroup, animatedEmojiStickers: animatedEmojiStickers, additionalAnimatedEmojiStickers: additionalAnimatedEmojiStickers, premiumGiftStickers: premiumGiftStickers, tonGiftStickers: tonGiftStickers, currentlyPlayingMessageId: currentlyPlayingMessageId, isCopyProtectionEnabled: isCopyProtectionEnabled, availableReactions: availableReactions, availableMessageEffects: availableMessageEffects, savedMessageTags: savedMessageTags, defaultReaction: defaultReaction, areStarReactionsEnabled: areStarReactionsEnabled, isPremium: isPremium, accountPeer: accountPeer, alwaysDisplayTranscribeButton: alwaysDisplayTranscribeButton, topicAuthorId: topicAuthorId, hasBots: hasBots, translateToLanguage: translateToLanguage, maxReadStoryId: maxReadStoryId, recommendedChannels: AyuGramSettings.shared.extra.disableSimilarChannels ? nil : recommendedChannels, audioTranscriptionTrial: audioTranscriptionTrial, chatThemes: chatThemes, deviceContactsNumbers: deviceContactsNumbers, isInline: isInline, showSensitiveContent: showSensitiveContent, isSuspiciousPeer: isSuspiciousPeer, accountCountry: accountCountry, isParticipant: isParticipant, invitedOn: invitedOn)
+ }
+ 
+ private extension ChatHistoryLocationInput {
+@@ -2538,7 +2538,7 @@
+                 }
+                 
+                 if let strongSelf = self {
+-                    if let recommendedChannels, !recommendedChannels.channels.isEmpty && !recommendedChannels.isHidden {
++                    if !AyuGramSettings.shared.extra.disableSimilarChannels, let recommendedChannels, !recommendedChannels.channels.isEmpty && !recommendedChannels.isHidden {
+                         if !strongSelf.didSetupRecommendedChannelsPreload {
+                             strongSelf.didSetupRecommendedChannelsPreload = true
+                             let preloadDisposable = DisposableSet()
+diff --git a/submodules/TelegramUI/Sources/Chat/ChatControllerMediaRecording.swift b/submodules/TelegramUI/Sources/Chat/ChatControllerMediaRecording.swift
+--- a/submodules/TelegramUI/Sources/Chat/ChatControllerMediaRecording.swift
++++ b/submodules/TelegramUI/Sources/Chat/ChatControllerMediaRecording.swift
+@@ -693,6 +693,24 @@
+         guard let recordedMediaPreview = self.presentationInterfaceState.interfaceState.mediaDraftState else {
+             return
+         }
++
++        var confirmationText: String?
++        switch recordedMediaPreview {
++        case .audio:
++            if AyuGramSettings.shared.extra.confirmVoiceMessages {
++                confirmationText = "Ayu.ConfirmVoice"
++            }
++        case .video:
++            if AyuGramSettings.shared.extra.confirmVideoMessages {
++                confirmationText = "Ayu.ConfirmVideo"
++            }
++        }
++        if let confirmationText, !self.ayuSendConfirmed {
++            self.ayuConfirmSend(text: confirmationText, send: { [weak self] in
++                self?.sendMediaRecording(silentPosting: silentPosting, scheduleTime: scheduleTime, repeatPeriod: repeatPeriod, viewOnce: viewOnce, messageEffect: messageEffect, postpone: postpone)
++            })
++            return
++        }
+         
+         switch recordedMediaPreview {
+         case let .audio(audio):
